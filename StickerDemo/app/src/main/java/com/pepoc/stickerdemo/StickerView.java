@@ -25,6 +25,11 @@ public class StickerView extends View {
     public static final float MAX_SCALE_SIZE = 5.0f;
     public static final float MIN_SCALE_SIZE = 0.5f;
 
+    private PointF mContentDstLeftTopPoint = new PointF();
+    private PointF mContentDstRightTopPoint = new PointF();
+    private PointF mContentDstLeftBottomPoint = new PointF();
+    private PointF mContentDstRigintBottomPoint = new PointF();
+    
     private RectF mViewRect;
 
     private float mLastPointX, mLastPointY, deviation;
@@ -300,7 +305,7 @@ public class StickerView extends View {
      * @param y
      * @return
      */
-    private boolean isInContent(float x, float y, Sticker currentSticker) {
+    private boolean isInContent(float touchX, float touchY, Sticker currentSticker) {
         // long startTime = System.currentTimeMillis();
         // float[] pointsDst = currentSticker.getMapPointsDst();
         // PointD pointF_1 = Utils.getMidpointCoordinate(pointsDst[0], pointsDst[1], pointsDst[2], pointsDst[3]);
@@ -336,10 +341,34 @@ public class StickerView extends View {
         // }
 
         // return false;
-        float[] pointsDst = currentSticker.getMapPointsDst();
-        if (x > pointsDst[0] && x < pointsDst[2] && y > pointsDst[3] && y < pointsDst[5])
-            return true;
-        return false;
+        float[] f = new float[9];
+        currentSticker.getmMatrix().getValues(f);
+        mContentDstLeftTopPoint.x = f[0] * 0 + f[1] * 0 + f[2];
+        mContentDstLeftTopPoint.y = f[3] * 0 + f[4] * 0 + f[5];
+        mContentDstRightTopPoint.x = f[0] * currentSticker.getBitmap().getWidth() + f[1] * 0 + f[2];
+        mContentDstRightTopPoint.y = f[3] * currentSticker.getBitmap().getWidth() + f[4] * 0 + f[5];
+        mContentDstLeftBottomPoint.x = f[0] * 0 + f[1] * currentSticker.getBitmap().getHeight() + f[2];
+        mContentDstLeftBottomPoint.y = f[3] * 0 + f[4] * currentSticker.getBitmap().getHeight() + f[5];
+        mContentDstRigintBottomPoint.x = f[0] * currentSticker.getBitmap().getWidth() + f[1] * currentSticker.getBitmap().getHeight() + f[2];
+        mContentDstRigintBottomPoint.y = f[3] * currentSticker.getBitmap().getWidth() + f[4] * currentSticker.getBitmap().getHeight() + f[5];
+
+        PointF pointF = new PointF(touchX, touchY);
+        PointF[] vertexPointFs = new PointF[] { mContentDstLeftTopPoint, mContentDstRightTopPoint, mContentDstRigintBottomPoint, mContentDstLeftBottomPoint };
+        int nCross = 0;
+        for (int i = 0; i < vertexPointFs.length; i++) {
+            PointF p1 = vertexPointFs[i];
+            PointF p2 = vertexPointFs[(i + 1) % vertexPointFs.length];
+            if (p1.y == p2.y)
+                continue;
+            if (pointF.y < Math.min(p1.y, p2.y))
+                continue;
+            if (pointF.y >= Math.max(p1.y, p2.y))
+                continue;
+            double x = (double) (pointF.y - p1.y) * (double) (p2.x - p1.x) / (double) (p2.y - p1.y) + p1.x;
+            if (x > pointF.x)
+                nCross++;
+        }
+        return (nCross % 2 == 1);
     }
 
     public void saveBitmapToFile() {
